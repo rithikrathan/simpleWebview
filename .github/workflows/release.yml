@@ -37,7 +37,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Verify APK signature
-        run: jarsigner -verify -certs app/build/outputs/apk/release/app-release.apk | tail -5
+        run: |
+          set -o pipefail
+          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose --print-certs \
+            app/build/outputs/apk/release/app-release.apk
 
       - name: Create GitHub release and upload APK
         uses: softprops/action-gh-release@v2
