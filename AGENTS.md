@@ -18,11 +18,15 @@ permissions, JS dialogs).
 
 ## Build
 
-Building happens **only** in GitHub Actions (see `.github/workflows/build.yml`).
-Do not install Android SDK components or Gradle locally.
+Building happens **only** in GitHub Actions. Do not install Android SDK components
+or Gradle locally.
 
-- Debug APK: `./gradlew assembleDebug` (CI)
-- Artifact: `app-debug.apk`, uploaded as a GitHub Actions artifact.
+- Debug APK: `./gradlew assembleDebug`
+- CI artifacts: `.github/workflows/build.yml` uploads `app-debug.apk` on every push
+  to `master`.
+- Releases: pushing a tag like `v1.0.0` triggers `.github/workflows/release.yml`,
+  which builds the debug APK and attaches it to a GitHub Release (debug-signed,
+  directly installable).
 
 Versions: Gradle 8.7 (wrapper), AGP 8.5.2, Kotlin 1.9.24, JDK 17,
 compileSdk/targetSdk 34, minSdk 24.
