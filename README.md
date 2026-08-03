@@ -11,8 +11,8 @@ browser-style URL bar opens sites in a fullscreen, fully-functional WebView.
 - **Browser-style URL bar** — type any URL to open a page once (nothing is
   saved), or tap the **+** icon to save the current URL as a shortcut tile.
 - **URL sync** — the home URL bar always shows the last page you visited.
-- **Fullscreen pages** — pages open edge-to-edge with all web features enabled
-  (JavaScript, notifications, geolocation, camera/mic permissions).
+- **Fullscreen pages** — **pages open edge-to-edge with all web features enabled
+  (JavaScript, notifications, geolocation, camera/mic permissions)**.
 - **One page at a time** — only one browsing session exists; opening a new page
   destroys the previous one.
 - **Private by design** — cookies, DOM storage and cache are cleared before each
