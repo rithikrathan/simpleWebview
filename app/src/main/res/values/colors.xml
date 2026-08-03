@@ -18,4 +18,6 @@
     <color name="md_surface_variant">#E1E2EC</color>
     <color name="md_on_surface_variant">#44474E</color>
     <color name="md_outline">#74777F</color>
+    <color name="md_surface_container">#EDEDF4</color>
+    <color name="md_surface_container_high">#E7E7EE</color>
 </resources>
