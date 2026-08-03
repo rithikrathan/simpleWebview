@@ -4,17 +4,22 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project overview
 
-A minimal Android app that displays a user-entered webpage in a fullscreen WebView.
-Two activities:
+An Android app that acts as a mini launcher for web pages: a home screen with
+saved-page shortcuts (with website favicons) plus a browser-style URL bar, and a
+fullscreen WebView page for the currently open site.
 
-- `MainActivity` — a URL input screen. Normalizes the URL (adds `https://` if no
-  scheme is present), launches `WebViewActivity`, then calls `finish()`.
-- `WebViewActivity` — a fullscreen WebView that loads the URL passed via the
-  `EXTRA_URL` intent extra.
+- `MainActivity` — home screen. Edge-to-edge, Material 3. A URL bar (browser-like,
+  with a **+** button that saves the current URL as a shortcut) above a 3-column
+  tiled grid of saved pages. Typing a URL opens it one-time; tapping a tile opens
+  that page; long-pressing a tile deletes it. Shows the last-viewed URL when you
+  return from a page.
+- `WebViewActivity` — fullscreen immersive WebView. Left-edge swipe (rightward)
+  and the hardware back button (after exhausting page history) return to Home,
+  passing the current page URL back so the home URL bar stays in sync.
 
 This is **not** a kiosk-blocking app. The WebView intentionally does **not** block
-web features (JavaScript, DOM storage, notifications, geolocation, camera/mic
-permissions, JS dialogs).
+web features (JavaScript, notifications, geolocation, camera/mic permissions,
+JS dialogs).
 
 ## Build
 
@@ -37,33 +42,46 @@ compileSdk/targetSdk 34, minSdk 24.
 app/src/main/
   AndroidManifest.xml
   java/dev/rithikrathan/simplewebview/
-    MainActivity.kt
-    WebViewActivity.kt
+    MainActivity.kt          (home: URL bar + shortcut grid)
+    WebViewActivity.kt       (fullscreen WebView page)
+    ShortcutRepository.kt    (SharedPreferences JSON persistence of saved pages)
+    ShortcutAdapter.kt       (grid adapter; Coil favicons + letter fallback)
+    UrlUtil.kt               (URL normalization + host helpers)
   res/layout/activity_main.xml
   res/layout/activity_webview.xml
-  res/values/ (strings, colors, themes)
-  res/drawable/ic_launcher.xml
+  res/layout/item_shortcut.xml
+  res/drawable/ (icons + adaptive launcher icon)
+  res/values/ (strings, colors, themes — Material 3)
 .gradle / build / local.properties -> gitignored (never commit)
 .github/workflows/build.yml
+.github/workflows/release.yml
 gradlew, gradlew.bat, gradle/wrapper/  (committed, required for CI)
 ```
 
 ## Hard invariants (do not break)
 
-1. **No way back to the URL page.** `MainActivity.finish()` after launching
-   `WebViewActivity`. Never add a navigation path from the WebView screen back to
-   the URL input screen.
-2. **The URL is never persisted.** No `SharedPreferences`, no `savedInstanceState`,
-   no files, no `onSaveInstanceState` overrides. The URL lives only in the in-memory
-   intent extra.
-3. **Back button = page history.** In `WebViewActivity`, the `OnBackPressedCallback`
-   calls `webView.goBack()` when `webView.canGoBack()`, otherwise `finish()` (which
-   exits the app, since `WebViewActivity` is the task root).
-4. **Web features are not blocked.** JavaScript and DOM storage are enabled, all
-   `onPermissionRequest` grants are accepted, and `target=_blank` links stay inside
-   the same WebView (`setSupportMultipleWindows(false)`).
+1. **One page at a time.** `WebViewActivity` is a single, replaceable session.
+   Opening any URL (icon or URL bar) from Home starts a fresh page; the previous
+   page is destroyed when you leave it.
+2. **No cookies / no persisted browsing state.** Cookies, DOM storage and cache are
+   cleared before each page loads and on app launch. `setSaveFormData(false)` and
+   `setSavePassword(false)` are set. The **only** persisted data is the user's
+   saved-shortcut list (`ShortcutRepository`, SharedPreferences).
+3. **The one-time/current URL is memory-only.** It is never written to disk. The
+   home URL bar reflects the last page URL only in memory, via the
+   `RESULT_OK` + `EXTRA_URL` result passed back from `WebViewActivity`.
+4. **Back = page history, then Home.** In `WebViewActivity`, the
+   `OnBackPressedCallback` calls `webView.goBack()` when `webView.canGoBack()`,
+   otherwise it returns to Home (exits only from Home). Left-edge rightward swipe
+   also returns Home.
+5. **Web features are not blocked.** JavaScript is enabled, all `onPermissionRequest`
+   grants are accepted, and `target=_blank` links stay inside the same WebView
+   (`setSupportMultipleWindows(false)`).
 
 ## Conventions
 
-- Kotlin, view binding (`ActivityMainBinding`, `ActivityWebviewBinding`).
+- Kotlin, view binding (`ActivityMainBinding`, `ActivityWebviewBinding`,
+  `ItemShortcutBinding`).
+- Material 3 (`Theme.SimpleWebview`), favicons via Coil, shortcuts via
+  SharedPreferences JSON (org.json).
 - No code comments unless necessary; keep the code minimal and dependency-light.

@@ -1,7 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">simpleWebview</string>
-    <string name="url_hint">https://example.com</string>
-    <string name="open_button">Open</string>
+
+    <string name="url_hint">Enter URL or search</string>
+    <string name="save_current">Save this page</string>
+    <string name="open">Open</string>
     <string name="invalid_url">Please enter a valid URL</string>
+
+    <string name="saved_pages">Saved pages</string>
+    <string name="empty_shortcuts">No saved pages yet.\nOpen a site and tap + to save it.</string>
+
+    <string name="delete_shortcut_title">Delete shortcut?</string>
+    <string name="delete_shortcut_message">Remove %1$s from saved pages?</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="saved">Saved</string>
 </resources>
