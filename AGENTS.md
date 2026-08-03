@@ -17,9 +17,10 @@ fullscreen WebView page for the currently open site.
   and the hardware back button (after exhausting page history) return to Home,
   passing the current page URL back so the home URL bar stays in sync.
 
-This is **not** a kiosk-blocking app. The WebView intentionally does **not** block
-web features (JavaScript, notifications, geolocation, camera/mic permissions,
-JS dialogs).
+This is **not** a kiosk-blocking app, but it is privacy-oriented: JavaScript and
+JS dialogs run, while geolocation, camera/mic and similar site permissions are
+gated behind per-request consent dialogs, and cross-site navigations and server
+redirects require explicit confirmation. Site notifications are not supported.
 
 ## Build
 
@@ -79,9 +80,15 @@ gradlew, gradlew.bat, gradle/wrapper/  (committed, required for CI)
    `OnBackPressedCallback` calls `webView.goBack()` when `webView.canGoBack()`,
    otherwise it returns to Home (exits only from Home). Left-edge rightward swipe
    also returns Home.
-5. **Web features are not blocked.** JavaScript is enabled, all `onPermissionRequest`
-   grants are accepted, and `target=_blank` links stay inside the same WebView
-   (`setSupportMultipleWindows(false)`).
+5. **Sensitive capabilities are gated.** JavaScript and JS dialogs are enabled, and
+   `target=_blank` links stay inside the same WebView
+   (`setSupportMultipleWindows(false)`). But geolocation/camera/mic and other
+   permission requests (`onPermissionRequest`,
+   `onGeolocationPermissionsShowPrompt`) are shown as per-request consent dialogs
+   that never persist (grants last only for the session), cross-host
+   page-initiated navigations (`shouldOverrideUrlLoading`) require explicit
+   confirmation, and server-side redirects to another host are surfaced as a
+   post-load warning (`shouldInterceptRequest` + `isRedirect`).
 
 ## Conventions
 

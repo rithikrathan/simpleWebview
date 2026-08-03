@@ -1,28 +1,29 @@
 package dev.rithikrathan.simplewebview
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.rithikrathan.simplewebview.databinding.ActivityWebviewBinding
 
 class WebViewActivity : AppCompatActivity() {
@@ -33,6 +34,7 @@ class WebViewActivity : AppCompatActivity() {
     private var downY = 0f
     private var mainFrameLoaded = false
     private var hideBarRunnable: Runnable? = null
+    private var activeDialog: AlertDialog? = null
 
     companion object {
         const val EXTRA_URL = "extra_url"
@@ -45,7 +47,6 @@ class WebViewActivity : AppCompatActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enterFullscreen()
-        requestNotificationPermissionIfNeeded()
         setupWebView()
         setupEdgeSwipe()
 
@@ -74,6 +75,7 @@ class WebViewActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         hideBarRunnable?.let { binding.loadingBar.removeCallbacks(it) }
+        dismissActiveDialog()
         super.onDestroy()
     }
 
@@ -116,6 +118,54 @@ class WebViewActivity : AppCompatActivity() {
                 showLoadingBar()
             }
 
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val req = request ?: return super.shouldInterceptRequest(view, request)
+                if (req.isForMainFrame && req.isRedirect) {
+                    val targetHost = req.url.host
+                    val currentHost = Uri.parse(currentUrl ?: "").host
+                    if (targetHost != null && targetHost != currentHost) {
+                        runOnUiThread {
+                            showRedirectWarning(currentHost, targetHost)
+                        }
+                    }
+                }
+                return super.shouldInterceptRequest(view, request)
+            }
+
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                val url = request?.url ?: return super.shouldOverrideUrlLoading(view, request)
+                val currentHost = Uri.parse(currentUrl ?: "").host
+                val targetHost = url.host
+                if (request.isForMainFrame &&
+                    currentHost != null &&
+                    targetHost != null &&
+                    currentHost != targetHost
+                ) {
+                    if (activeDialog != null) return true
+                    val dialog = MaterialAlertDialogBuilder(this@WebViewActivity)
+                        .setTitle("Leaving $currentHost")
+                        .setMessage("This page wants to open $targetHost. Allow?")
+                        .setPositiveButton("Allow") { _, _ ->
+                            view?.loadUrl(url.toString())
+                        }
+                        .setNegativeButton("Block") { _, _ -> }
+                        .create()
+                    dialog.setOnDismissListener {
+                        if (activeDialog === dialog) activeDialog = null
+                    }
+                    activeDialog = dialog
+                    dialog.show()
+                    return true
+                }
+                return super.shouldOverrideUrlLoading(view, request)
+            }
+
             override fun onLoadResource(view: WebView?, url: String?) {
                 super.onLoadResource(view, url)
                 if (mainFrameLoaded) {
@@ -148,11 +198,22 @@ class WebViewActivity : AppCompatActivity() {
             }
 
             override fun onPermissionRequest(request: PermissionRequest) {
-                request.grant(request.resources)
+                showConsentDialog(request.resources.toList()) { allowed ->
+                    if (allowed) request.grant(request.resources) else request.deny()
+                }
+            }
+
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String,
+                callback: GeolocationPermissions.Callback
+            ) {
+                showConsentDialog(listOf("Location")) { allowed ->
+                    callback.invoke(origin, allowed, false)
+                }
             }
 
             override fun onPermissionRequestCanceled(request: PermissionRequest) {
-                super.onPermissionRequestCanceled(request)
+                dismissActiveDialog()
             }
         }
     }
@@ -187,6 +248,58 @@ class WebViewActivity : AppCompatActivity() {
         binding.loadingBar.postDelayed(runnable, delayMillis)
     }
 
+    private fun showConsentDialog(resources: List<String>, onResult: (Boolean) -> Unit) {
+        if (isFinishing || isDestroyed || activeDialog != null) {
+            onResult(false)
+            return
+        }
+        val message = resources.joinToString("\n") { name ->
+            when (name) {
+                PermissionRequest.RESOURCE_VIDEO_CAPTURE -> "Camera"
+                PermissionRequest.RESOURCE_AUDIO_CAPTURE -> "Microphone"
+                PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID -> "Protected media"
+                PermissionRequest.RESOURCE_MIDI_SYSEX -> "MIDI"
+                else -> name
+            }
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Permission requested")
+            .setMessage(message)
+            .setPositiveButton("Allow") { _, _ -> onResult(true) }
+            .setNegativeButton("Deny") { _, _ -> onResult(false) }
+            .setOnCancelListener { onResult(false) }
+            .create()
+        dialog.setOnDismissListener {
+            if (activeDialog === dialog) activeDialog = null
+        }
+        activeDialog = dialog
+        dialog.show()
+    }
+
+    private fun showRedirectWarning(currentHost: String?, targetHost: String) {
+        if (isFinishing || isDestroyed || activeDialog != null) return
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Redirected to another site")
+            .setMessage(
+                "You were redirected from ${currentHost ?: "the previous page"} to $targetHost."
+            )
+            .setPositiveButton("Stay") { _, _ -> }
+            .setNegativeButton("Go back") { _, _ ->
+                if (binding.webview.canGoBack()) binding.webview.goBack() else returnHome()
+            }
+            .create()
+        dialog.setOnDismissListener {
+            if (activeDialog === dialog) activeDialog = null
+        }
+        activeDialog = dialog
+        dialog.show()
+    }
+
+    private fun dismissActiveDialog() {
+        activeDialog?.dismiss()
+        activeDialog = null
+    }
+
     private fun setupEdgeSwipe() {
         val edge = resources.displayMetrics.density * 64f
         binding.webview.setOnTouchListener { _, event ->
@@ -213,19 +326,6 @@ class WebViewActivity : AppCompatActivity() {
         WindowInsetsControllerCompat(window, binding.root).apply {
             hide(WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    }
-
-    private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                1
-            )
         }
     }
 }
