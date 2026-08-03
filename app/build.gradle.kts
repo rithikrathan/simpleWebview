@@ -1,3 +1,6 @@
+import java.io.File
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,8 +14,22 @@ android {
         applicationId = "dev.rithikrathan.simplewebview"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "2.0.1"
+        versionCode = 4
+        versionName = "2.1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystoreB64 = System.getenv("KEYSTORE_BASE64")
+            if (keystoreB64 != null) {
+                val keystoreFile = File(System.getProperty("user.home"), "simplewebview-release.jks")
+                keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreB64))
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -22,6 +39,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (System.getenv("KEYSTORE_BASE64") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

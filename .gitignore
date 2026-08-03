@@ -63,3 +63,4 @@ captures/
 # Keystore / signing secrets
 *.jks
 *.keystore
+keystore/

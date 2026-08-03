@@ -30,8 +30,12 @@ or Gradle locally.
 - CI artifacts: `.github/workflows/build.yml` uploads `app-debug.apk` on every push
   to `master`.
 - Releases: pushing a tag like `v1.0.0` triggers `.github/workflows/release.yml`,
-  which builds the debug APK and attaches it to a GitHub Release (debug-signed,
-  directly installable).
+  which builds, signs and publishes `app-release.apk` to a GitHub Release.
+- Signing: release builds are signed via the GitHub secrets `KEYSTORE_BASE64`,
+  `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (see `signingConfigs.release`
+  in `app/build.gradle.kts`). A local backup of the keystore lives in the
+  **gitignored** `keystore/` folder — never commit it, and never hardcode the
+  passwords in source.
 
 Versions: Gradle 8.7 (wrapper), AGP 8.5.2, Kotlin 1.9.24, JDK 17,
 compileSdk/targetSdk 34, minSdk 24.
@@ -51,7 +55,8 @@ app/src/main/
   res/layout/activity_webview.xml
   res/layout/item_shortcut.xml
   res/drawable/ (icons + adaptive launcher icon)
-  res/values/ (strings, colors, themes — Material 3)
+  res/values/ + res/values-night/ (strings, colors, themes — Material 3)
+keystore/ -> gitignored local backup of the release keystore (never commit)
 .gradle / build / local.properties -> gitignored (never commit)
 .github/workflows/build.yml
 .github/workflows/release.yml
