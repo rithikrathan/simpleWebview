@@ -50,3 +50,16 @@ Thumbs.db
 *.config.local
 /private/
 
+# Android / Gradle
+.gradle/
+/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+
+# Keystore / signing secrets
+*.jks
+*.keystore

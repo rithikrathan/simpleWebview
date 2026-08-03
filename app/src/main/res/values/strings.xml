@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">simpleWebview</string>
+    <string name="url_hint">https://example.com</string>
+    <string name="open_button">Open</string>
+    <string name="invalid_url">Please enter a valid URL</string>
+</resources>
